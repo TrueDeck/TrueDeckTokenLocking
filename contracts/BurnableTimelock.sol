@@ -1,4 +1,4 @@
-pragma solidity 0.4.23;
+pragma solidity ^0.5.0;
 
 library SafeMath {
     function mul(uint256 _a, uint256 _b) internal pure returns (uint256) {
@@ -104,6 +104,10 @@ contract Ownable {
 contract TokenBurner {
     function burn() public {
         selfdestruct(address(this));
+    }
+
+    function() payable external {
+
     }
 }
 

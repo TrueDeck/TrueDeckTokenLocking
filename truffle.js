@@ -37,5 +37,6 @@ module.exports = {
             enabled: true,
             runs: 200
         }
-    }
+    },
+    plugins: [ "truffle-security" ]
 };
