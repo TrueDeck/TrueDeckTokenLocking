@@ -10,11 +10,13 @@ module.exports = function(deployer, network, accounts) {
         releaseTime = 1553618317;
     }
 
-    console.log(`  Deploying BurnableTimelock on ${network}:`);
-    console.log(`  - TOKEN = ${tdpTokenAddress}`);
-    console.log(`  - FROM  = ${accounts[0]}`);
-    console.log(`  - TIME  = ${releaseTime}`);
-    console.log(`  - DELAY = ${releaseDelay}`);
+    if (network !== "test") {
+      console.log(`  Deploying BurnableTimelock on ${network}:`);
+      console.log(`  - TOKEN = ${tdpTokenAddress}`);
+      console.log(`  - FROM  = ${accounts[0]}`);
+      console.log(`  - TIME  = ${releaseTime}`);
+      console.log(`  - DELAY = ${releaseDelay}`);
+    }
 
     deployer.deploy(BurnableTimelock, tdpTokenAddress, accounts[0], releaseTime, releaseDelay);
 };
