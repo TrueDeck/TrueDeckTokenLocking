@@ -15,7 +15,5 @@
     "truffle": "4.1.8",
     "truffle-hdwallet-provider": "0.0.5"
   },
-  "devDependencies": {
-    "openzeppelin-test-helpers": "^0.3.0"
-  }
+  "devDependencies": {}
 }
