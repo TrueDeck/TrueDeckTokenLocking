@@ -64,10 +64,14 @@ contract ERC20 {
 
 contract Ownable {
     address private _owner;
+    bool private _paused;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Paused(address account);
+    event Unpaused(address account);
 
     constructor () internal {
+        _paused = false;
         _owner = msg.sender;
         emit OwnershipTransferred(address(0), _owner);
     }
@@ -76,8 +80,22 @@ contract Ownable {
         return _owner;
     }
 
+    function paused() public view returns (bool) {
+        return _paused;
+    }
+
     modifier onlyOwner() {
         require(isOwner());
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(!_paused);
+        _;
+    }
+
+    modifier whenPaused() {
+        require(_paused);
         _;
     }
 
@@ -92,6 +110,16 @@ contract Ownable {
 
     function transferOwnership(address newOwner) public onlyOwner {
         _transferOwnership(newOwner);
+    }
+
+    function pause() public onlyOwner whenNotPaused {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() public onlyOwner whenPaused {
+        _paused = false;
+        emit Unpaused(msg.sender);
     }
 
     function _transferOwnership(address newOwner) internal {
@@ -120,15 +148,26 @@ contract BurnableTimelock is Ownable {
 
     address private _beneficiary;
 
-    uint256 private _releaseTime;
+    uint256 private _requestTime;
+
+    uint256 private _releaseDelay;
+
+    bool private _releaseRequested;
 
     uint256 private _totalBurned;
 
-    constructor (address token, address beneficiary, uint256 releaseTime) public {
+    event BeneficiaryChanged(address indexed previousAccount, address indexed newAccount);
+    event ReleaseRequested(address account);
+
+    constructor (address token, address beneficiary, uint256 releaseTime, uint256 releaseDelay) public {
         require(releaseTime > block.timestamp);
+        require(releaseDelay >= 864000 && releaseDelay <= 3888000); // Min = 10 days, Max = 45 days
+        require(beneficiary != address(0));
         _token = ERC20(token);
         _beneficiary = beneficiary;
-        _releaseTime = releaseTime;
+        _requestTime = releaseTime - releaseDelay;
+        _releaseDelay = releaseDelay;
+        _releaseRequested = false;
     }
 
     function token() public view returns (ERC20) {
@@ -140,7 +179,15 @@ contract BurnableTimelock is Ownable {
     }
 
     function releaseTime() public view returns (uint256) {
-        return _releaseTime;
+        return _requestTime + _releaseDelay;
+    }
+
+    function releaseDelay() public view returns (uint256) {
+        return _releaseDelay;
+    }
+
+    function releaseRequested() public view returns (bool) {
+        return _releaseRequested;
     }
 
     function totalBurned() public view returns (uint256) {
@@ -151,16 +198,28 @@ contract BurnableTimelock is Ownable {
         return _token.balanceOf(address(this));
     }
 
-    function release() public {
-        require(block.timestamp >= _releaseTime);
-
-        uint256 amount = _token.balanceOf(address(this));
-        require(amount > 0);
-
-        _token.transfer(_beneficiary, amount);
+    function changeBeneficiary(address newBeneficiary) public onlyOwner whenPaused {
+        require(newBeneficiary != address(0));
+        emit BeneficiaryChanged(_beneficiary, newBeneficiary);
+        _beneficiary = newBeneficiary;
     }
 
-    function burn(uint256 burnAmount) public onlyOwner {
+    function release() public whenNotPaused {
+        require(block.timestamp >= _requestTime);
+
+        if (!_releaseRequested) {
+            _releaseRequested = true;
+            emit ReleaseRequested(msg.sender);
+        } else {
+            require(block.timestamp >= (_requestTime + _releaseDelay));
+
+            uint256 amount = _token.balanceOf(address(this));
+            require(amount > 0);
+            _token.transfer(_beneficiary, amount);
+        }
+    }
+
+    function burn(uint256 burnAmount) public onlyOwner whenNotPaused {
         require(burnAmount > 0);
 
         uint256 amount = _token.balanceOf(address(this));
